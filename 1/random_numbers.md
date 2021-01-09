@@ -32,4 +32,22 @@ $ od -A n -t u4 -N 4 /dev/urandom | tr -d '\t '
 ## In case You'd Rather Not Adopt `/dev/urandom`
 Though it generates random numbers less quality than `/dev/urandom`,
 you have another method;
-ps command --- outputs 
+ps command always outputs different results whenever you run it, so
+let it be the seed.
+
+In paticular, you should use list of process ID, execution time, CPU usage rate, and memor usage amount
+as they vary by time.
+You should also use current time and pass all of them in range of <2^32 to srand() of AWK:
+
+```sh
+LF=$(printf '\\\n_');LF=${LF%_}     # to replace to LF with sed
+(ps -Ao pid,etime,pcpu,vsz; date) | # seeds
+od -t d4 -A n -v                  | # convert to integers
+sed 's/[^0-9]\{1,\}/'"$LF"'/g'    |
+grep '[0-9]'                      |
+tail -n 42                        | # prepare up to 42 integers
+sed 's/.*\(.\{8\}\)$/\1/g'        | # that are <=100,000,000
+awk 'BEGIN{a=-2147483648;}        # # sum up them
+     {a+=$1;}                     #   to make a signed long value
+     END{srand(a);print rand();}' # # ('a' should be <2^32)
+```
